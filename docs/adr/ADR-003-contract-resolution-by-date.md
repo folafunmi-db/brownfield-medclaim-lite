@@ -1,6 +1,6 @@
 # ADR-003: Contract resolution should use the claim service date
 
-**Status:** Accepted — **not yet enforced everywhere**
+**Status:** Accepted — enforced
 **Date:** 2023
 
 ## Context
@@ -23,7 +23,8 @@ so there is one place to get this right.
 
 ## Status note
 
-At time of writing, `resolve_contract` is **not** consistently using the service
-date. This is documented here and left as-is; it surfaces as wrong allowed
-amounts on statements that include claims from before a payer's most recent
-renewal (most visibly, late-December care billed in January). Tracked, not fixed.
+Enforced (T-101). `resolve_contract` now delegates to `contract_for_date`, so
+statements use the contract in force on the service date. `build_statement`
+resolves through the wrapper **per claim line**: a statement that spans a payer
+renewal rates each claim by its own service date rather than assuming a single
+contract period per statement.

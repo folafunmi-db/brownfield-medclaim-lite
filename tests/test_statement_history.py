@@ -22,7 +22,11 @@ def test_build_statement_calls_contract_service(client, mocker):
     mock_contracts = mocker.patch("medclaim.billing.statement.resolve_contract")
     mock_contracts.return_value = Contract(rate_pct=80)
     build_statement(patient_id="P-1042")
-    mock_contracts.assert_called_once()
+    # ADR-003: all resolution goes through the one resolver, by service date.
+    # T-101: each claim resolves against its own service date (memoized), so
+    # both P-1042 service dates appear.
+    called_dates = {call.args[1] for call in mock_contracts.call_args_list}
+    assert called_dates == {"2024-03-04", "2024-04-11"}
 
 
 def test_statement_totals_sum_to_balance(client, seed):

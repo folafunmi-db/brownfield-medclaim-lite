@@ -89,9 +89,10 @@ def build_statement(patient_id):
             })
 
         # ---------------------------------------------------------- contract
-        # resolve ONCE for the statement using the newest service date as the
-        # as-of date. era-1 shortcut: a statement is assumed to sit in a single
-        # contract period. goes through the one resolver (ADR-003).
+        # resolve the statement-header contract using the newest service date,
+        # through the one resolver (ADR-003). per-line amounts resolve against
+        # each claim's own service date below (T-101); this one only feeds the
+        # "Contract as of" header line.
         if newest_service_date is not None:
             as_of = newest_service_date
         else:
@@ -102,9 +103,19 @@ def build_statement(patient_id):
         else:
             allowed_rate = 0   # no contract on file: payer allows nothing
 
+        # memoized per-service-date lookup so repeated dates don't re-query.
+        _rate_cache = {as_of: allowed_rate}
+
+        def _rate_for(service_date):
+            if service_date not in _rate_cache:
+                c = resolve_contract(payer_id, service_date)
+                _rate_cache[service_date] = c.rate_pct if c is not None else 0
+            return _rate_cache[service_date]
+
         # ------------------------------------------------------- per-line pass
         # build display lines; for unpaid claims estimate the patient-owed part
-        # using the resolved rate. the estimate is informational only.
+        # using the rate of the contract in force on THAT claim's service date
+        # (T-101: a statement can span a payer renewal). informational only.
         lines = []
         estimated_patient_due = 0
         for w in working:
@@ -112,7 +123,8 @@ def build_statement(patient_id):
             adjustment = w["adjustment"]
             paid = w["paid"]
 
-            expected_allowed = (charge * allowed_rate) // 100   # cents
+            line_rate = _rate_for(w["service_date"]) if w["service_date"] else allowed_rate
+            expected_allowed = (charge * line_rate) // 100   # cents
             w["expected_allowed"] = expected_allowed
 
             if paid > 0:

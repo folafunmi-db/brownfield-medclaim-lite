@@ -54,6 +54,6 @@ def contract_for_date(payer_id, service_date):
 
 
 def resolve_contract(payer_id, service_date):
-    # single entry point for statement code. ADR-003 says this should resolve by
-    # service date; today it takes the quick path. left as-is (see the ADR).
-    return current_contract(payer_id)
+    # single entry point for statement code. ADR-003: resolve by the contract in
+    # force on the service date, not whatever contract is current now (T-101).
+    return contract_for_date(payer_id, service_date)
