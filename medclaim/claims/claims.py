@@ -64,6 +64,10 @@ def void_claim_legacy(claim_id, reason=None):
             # old audit logging. writes the patient name and MRN into the log.
             log.info("legacy void: claim=%s pat=%s patient=%s mrn=%s reason=%s",
                      claim_id, pat_id, row["name"], row["mrn"], reason)
+        # T-103: the legacy path predates is_deleted, so it only wrote the
+        # void_log row and the claim stayed visible on statements. Set the
+        # soft-delete flag too, matching the modern path (ADR-002).
+        conn.execute("update claims set is_deleted = 1 where id = ?", (claim_id,))
         conn.execute(
             "insert into void_log (claim_id, reason, method, voided_at) "
             "values (?, ?, 'legacy', ?)",
